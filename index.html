@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-bs-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flashcard</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  /* ── 3D flip card */
+  .card-scene { height:220px; perspective:1000px; cursor:pointer; }
+  .card-inner {
+    width:100%; height:100%; position:relative;
+    transform-style:preserve-3d;
+    transition:transform 0.6s cubic-bezier(0.4,0,0.2,1);
+  }
+  .card-inner.flipped { transform:rotateY(180deg); }
+  .card-face {
+    position:absolute; inset:0;
+    backface-visibility:hidden; -webkit-backface-visibility:hidden;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    border-radius:.75rem; padding:2rem;
+  }
+  .card-face-back { transform:rotateY(180deg); }
+
+  /* ── Score button colours */
+  .btn-s1 { --bs-btn-color:#fff; --bs-btn-bg:#dc3545; --bs-btn-border-color:#dc3545; }
+  .btn-s2 { --bs-btn-color:#fff; --bs-btn-bg:#fd7e14; --bs-btn-border-color:#fd7e14; }
+  .btn-s3 { --bs-btn-color:#000; --bs-btn-bg:#ffc107; --bs-btn-border-color:#ffc107; }
+  .btn-s4 { --bs-btn-color:#fff; --bs-btn-bg:#20c997; --bs-btn-border-color:#20c997; }
+  .btn-s5 { --bs-btn-color:#fff; --bs-btn-bg:#198754; --bs-btn-border-color:#198754; }
+  .btn-s1,.btn-s2,.btn-s3,.btn-s4,.btn-s5 { transition:opacity .15s, transform .1s; }
+  .btn-s1:disabled,.btn-s2:disabled,.btn-s3:disabled,.btn-s4:disabled,.btn-s5:disabled
+    { opacity:.35; pointer-events:none; }
+
+  /* ── Card enter */
+  @keyframes cardEnter {
+    from { opacity:0; transform:translateY(14px) scale(.97); }
+    to   { opacity:1; transform:none; }
+  }
+  .card-enter { animation:cardEnter .3s ease; }
+
+  /* ── Save badge */
+  #save-indicator { position:absolute; top:10px; right:14px; font-size:.7rem; opacity:0; transition:opacity .4s; }
+  #save-indicator.show { opacity:1; }
+</style>
+</head>
+<body class="bg-dark text-light min-vh-100 d-flex flex-column">
+
+<!-- NAVBAR -->
+<nav class="navbar navbar-dark bg-dark border-bottom border-secondary sticky-top px-3">
+  <span class="navbar-brand mb-0 h5">Flashcard</span>
+  <div id="header-stats" class="d-none d-flex align-items-center gap-3">
+    <small class="text-secondary">待複習 <span id="stat-due" class="text-light fw-semibold">—</span></small>
+    <small class="text-secondary">總字數 <span id="stat-total" class="text-light fw-semibold">—</span></small>
+    <span id="stat-streak" class="badge bg-warning text-dark" title="連續登入天數" style="font-size:.75rem; display:none">🔥 —</span>
+    <button class="btn btn-outline-secondary btn-sm" onclick="openAddModal()">＋ 新增</button>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="flex-grow-1 d-flex align-items-center justify-content-center p-3">
+
+  <!-- SETUP -->
+  <div id="setup-panel" style="max-width:440px;width:100%">
+    <h4 class="mb-1">開始複習</h4>
+    <p class="text-secondary small mb-4">貼上你的 GAS Web App URL 即可載入單字庫。</p>
+    <div class="mb-3">
+      <label class="form-label small text-secondary">GAS Web App URL</label>
+      <input id="gas-url" type="text" class="form-control bg-dark text-light border-secondary"
+             placeholder="https://script.google.com/macros/s/.../exec"
+             autocomplete="off" spellcheck="false"
+    </div>
+    <button class="btn btn-warning w-100" onclick="startApp()">載入單字庫 →</button>
+    <div id="setup-error" class="text-danger small mt-2"></div>
+  </div>
+
+  <!-- LOADER -->
+  <div id="loader" class="d-none flex-column align-items-center gap-3">
+    <div class="spinner-border text-warning"></div>
+    <small class="text-secondary" id="loader-text">載入單字庫中…</small>
+  </div>
+
+  <!-- APP -->
+  <div id="app" class="d-none flex-column align-items-center w-100" style="max-width:480px">
+    <!-- Progress -->
+    <div class="d-flex align-items-center w-100 mb-3 gap-2">
+      <small id="q-current" class="text-secondary">1</small>
+      <div class="progress flex-grow-1" style="height:3px">
+        <div id="q-progress" class="progress-bar bg-warning" style="width:0%"></div>
+      </div>
+      <small id="q-total" class="text-secondary">1</small>
+    </div>
+
+    <!-- Flashcard -->
+    <div class="card-scene w-100 mb-3" onclick="flipCard()">
+      <div class="card-inner" id="card-inner">
+        <div class="card-face bg-secondary bg-opacity-25 border border-secondary">
+          <div id="card-word" class="fs-1 text-center fw-light">—</div>
+          <small class="text-secondary mt-3" style="font-size:.65rem;letter-spacing:.1em">CLICK TO FLIP</small>
+        </div>
+        <div class="card-face card-face-back bg-secondary bg-opacity-10 border border-secondary">
+          <div id="card-translation" class="fs-2 text-warning text-center fw-light">—</div>
+          <div id="card-meta" class="mt-2 d-flex gap-2 flex-wrap justify-content-center"></div>
+          <span id="save-indicator" class="text-success">✓ 已儲存</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rating -->
+    <div id="rating-area" class="w-100">
+      <div class="text-center text-secondary mb-2" style="font-size:.7rem;letter-spacing:.1em">這個字有多熟？</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem">
+        <button class="btn btn-s1 btn-sm py-2" onclick="handleReview(1)">
+          <div class="fw-bold">1</div><div style="font-size:.6rem">完全<br>不記得</div>
+        </button>
+        <button class="btn btn-s2 btn-sm py-2" onclick="handleReview(2)">
+          <div class="fw-bold">2</div><div style="font-size:.6rem">很模糊<br>錯誤</div>
+        </button>
+        <button class="btn btn-s3 btn-sm py-2" onclick="handleReview(3)">
+          <div class="fw-bold">3</div><div style="font-size:.6rem">勉強<br>記得</div>
+        </button>
+        <button class="btn btn-s4 btn-sm py-2" onclick="handleReview(4)">
+          <div class="fw-bold">4</div><div style="font-size:.6rem">順利<br>答對</div>
+        </button>
+        <button class="btn btn-s5 btn-sm py-2" onclick="handleReview(5)">
+          <div class="fw-bold">5</div><div style="font-size:.6rem">毫秒<br>反射</div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DONE -->
+  <div id="done-panel" class="d-none flex-column align-items-center gap-3 text-center" style="max-width:340px">
+    <div style="font-size:2.5rem">✦</div>
+    <h4 class="text-warning">今日複習完成</h4>
+    <p id="done-sub" class="text-secondary small"></p>
+    <button class="btn btn-outline-secondary btn-sm" onclick="reloadSession()">重新整理</button>
+  </div>
+
+</div>
+
+<!-- ADD WORD MODAL -->
+<div class="modal fade" id="addModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark border-secondary">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title text-warning">新增單字</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="mode-single">
+          <div class="row g-2 mb-2">
+            <div class="col">
+              <label class="form-label small text-secondary">單字</label>
+              <input id="add-word" type="text" class="form-control bg-dark text-light border-secondary"
+                     placeholder="e.g. ephemeral" autocomplete="off">
+            </div>
+            <div class="col">
+              <label class="form-label small text-secondary">翻譯</label>
+              <input id="add-translation" type="text" class="form-control bg-dark text-light border-secondary"
+                     placeholder="短暫的" autocomplete="off">
+            </div>
+          </div>
+        </div>
+        <div id="mode-batch" class="d-none">
+          <label class="form-label small text-secondary">批次貼上</label>
+          <textarea id="add-batch" class="form-control bg-dark text-light border-secondary"
+                    rows="6" placeholder="ephemeral,短暫的&#10;serendipity,意外好運&#10;ubiquitous,無所不在的"></textarea>
+          <div class="form-text">每行格式：<code>單字,翻譯</code></div>
+        </div>
+        <div id="modal-error" class="text-danger small mt-2"></div>
+      </div>
+      <div class="modal-footer border-secondary justify-content-between">
+        <button class="btn btn-link btn-sm text-secondary p-0" id="batch-toggle" onclick="toggleBatchMode()">切換為批次模式</button>
+        <div class="d-flex align-items-center gap-2">
+          <small id="modal-status" class="text-secondary"></small>
+          <button class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">取消</button>
+          <button class="btn btn-warning btn-sm" id="btn-submit-add" onclick="submitAddWord()">新增 →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container position-fixed bottom-0 start-50 translate-middle-x p-3" style="z-index:9999">
+  <div id="liveToast" class="toast align-items-center text-bg-secondary border-0">
+    <div class="d-flex">
+      <div id="toast-body" class="toast-body"></div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+let API_URL  = '';
+let allWords = [];   // 唯一資料來源，前端負責所有邏輯
+let dueQueue = [];
+let currentIndex = 0;
+let isFlipped = false;
+let isSaving  = false;
+let bsAddModal, isBatchMode = false;
+
+
+// ═══════════════════════════════════════════
+//  SETUP
+// ═══════════════════════════════════════════
+async function startApp() {
+  const url = document.getElementById('gas-url').value.trim();
+  const err = document.getElementById('setup-error');
+  err.textContent = '';
+  if (!url || !url.startsWith('http')) { err.textContent = '請貼上有效的 GAS Web App URL。'; return; }
+  API_URL = url;
+  show('loader');
+  await loadWords();
+}
+
+
+// ═══════════════════════════════════════════
+//  GET — 下載整個陣列
+// ═══════════════════════════════════════════
+async function loadWords() {
+  console.log('[GET] 開始下載單字庫…', API_URL);
+  setLoaderText('載入單字庫中…');
+  try {
+    const res  = await fetch(API_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    allWords = data.words || [];
+    console.log(`[GET] ✅ 成功，共 ${allWords.length} 個單字`, allWords);
+    console.log(`[GET] 連勝：${data.streak} 天，上次登入：${data.lastLogin}`);
+
+    updateStreakUI(data.streak || 0);
+
+    if (data.isNewDay) {
+      const streak = data.streak || 1;
+      const msg = streak === 1
+        ? '👋 歡迎回來！連勝重新開始，第 1 天'
+        : `🔥 新的一天！目前連續第 ${streak} 天`;
+      setTimeout(() => toast(msg, 4000), 800);
+    }
+
+    buildQueue();
+    updateHeaderStats();
+    document.getElementById('header-stats').classList.remove('d-none');
+    if (dueQueue.length === 0) showDone();
+    else { show('app'); showCard(); }
+
+  } catch (e) {
+    console.error('[GET] ❌ 下載失敗', e);
+    show('setup-panel');
+    document.getElementById('setup-error').textContent = `載入失敗：${e.message}`;
+    toast('⚠ 無法連線，請確認 API URL');
+  }
+}
+
+
+// ═══════════════════════════════════════════
+//  POST — 上傳整個 allWords 陣列
+// ═══════════════════════════════════════════
+function saveAllWords() {
+  console.log(`[POST] 開始上傳整個陣列，共 ${allWords.length} 個單字`, allWords);
+  fetch(API_URL, {
+    method:  'POST',
+    mode:    'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body:    JSON.stringify({ words: allWords }),
+  })
+  .then(() => console.log(`[POST] ✅ 請求已送出（no-cors，無法讀取 GAS 回應）共 ${allWords.length} 個單字`))
+  .catch(e  => console.error('[POST] ❌ 上傳失敗', e));
+}
+
+
+// ═══════════════════════════════════════════
+//  QUEUE
+// ═══════════════════════════════════════════
+function buildQueue() {
+  const today = todayStr();
+  dueQueue = allWords.filter(w => !w.nextReview || w.nextReview <= today);
+  // shuffle
+  for (let i = dueQueue.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [dueQueue[i], dueQueue[j]] = [dueQueue[j], dueQueue[i]];
+  }
+  currentIndex = 0;
+}
+
+
+// ═══════════════════════════════════════════
+//  CARD DISPLAY
+// ═══════════════════════════════════════════
+function showCard() {
+  if (currentIndex >= dueQueue.length) { showDone(); return; }
+  const w = dueQueue[currentIndex];
+  document.getElementById('card-word').textContent = w.word;
+  document.getElementById('card-translation').textContent = w.translation;
+  const ef = parseFloat(w.efactor) || 2.5, iv = parseInt(w.interval) || 0;
+  document.getElementById('card-meta').innerHTML =
+    `<span class="badge bg-secondary">EF ${ef.toFixed(2)}</span>` +
+    `<span class="badge bg-secondary">間隔 ${iv}天</span>`;
+  const inner = document.getElementById('card-inner');
+  inner.classList.remove('flipped', 'card-enter');
+  void inner.offsetWidth;
+  inner.classList.add('card-enter');
+  isFlipped = false;
+  enableRatingBtns(true);
+  document.getElementById('save-indicator').classList.remove('show');
+  const done = currentIndex, total = dueQueue.length;
+  document.getElementById('q-current').textContent = done + 1;
+  document.getElementById('q-total').textContent = total;
+  document.getElementById('q-progress').style.width = `${(done / total) * 100}%`;
+}
+
+function flipCard() {
+  if (isSaving) return;
+  document.getElementById('card-inner').classList.toggle('flipped');
+  isFlipped = !isFlipped;
+}
+
+
+// ═══════════════════════════════════════════
+//  SM-2 — 全在前端計算
+// ═══════════════════════════════════════════
+function calcSM2(word, score) {
+  let ef       = parseFloat(word.efactor) || 2.5;
+  let interval = parseInt(word.interval)  || 0;
+
+  // 更新 EF
+  let newEF = ef + (0.1 - (5 - score) * (0.08 + (5 - score) * 0.02));
+  if (newEF < 1.3) newEF = 1.3;
+
+  // 更新 interval
+  let newInterval = score < 3 ? 1
+    : interval === 0 ? 1
+    : interval === 1 ? 6
+    : Math.round(interval * newEF);
+
+  return {
+    efactor:    parseFloat(newEF.toFixed(4)),
+    interval:   newInterval,
+    nextReview: addDays(todayStr(), newInterval),
+  };
+}
+
+async function handleReview(score) {
+  if (isSaving) return;
+  isSaving = true;
+  enableRatingBtns(false);
+
+  const word   = dueQueue[currentIndex];
+  const update = calcSM2(word, score);
+  console.log(`[REVIEW] word="${word.word}" score=${score}`, update);
+
+  // 前端更新 allWords（唯一資料來源）
+  const idx = allWords.findIndex(w => w.id === word.id);
+  if (idx !== -1) Object.assign(allWords[idx], update);
+  Object.assign(word, update);
+
+  // 上傳整個陣列
+  saveAllWords();
+  document.getElementById('save-indicator').classList.add('show');
+
+  await sleep(350);
+  isSaving = false;
+  currentIndex++;
+  updateHeaderStats();
+  if (currentIndex >= dueQueue.length) showDone();
+  else showCard();
+}
+
+
+// ═══════════════════════════════════════════
+//  ADD WORD — 前端直接推入 allWords，然後上傳整個陣列
+// ═══════════════════════════════════════════
+function openAddModal() {
+  if (!bsAddModal) bsAddModal = new bootstrap.Modal(document.getElementById('addModal'));
+  ['modal-error','modal-status'].forEach(id => document.getElementById(id).textContent = '');
+  ['add-word','add-translation','add-batch'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('btn-submit-add').disabled = false;
+  if (isBatchMode) toggleBatchMode();
+  bsAddModal.show();
+  setTimeout(() => document.getElementById('add-word').focus(), 300);
+}
+
+function closeAddModal() { if (bsAddModal) bsAddModal.hide(); }
+
+function toggleBatchMode() {
+  isBatchMode = !isBatchMode;
+  document.getElementById('mode-single').classList.toggle('d-none', isBatchMode);
+  document.getElementById('mode-batch').classList.toggle('d-none', !isBatchMode);
+  document.getElementById('batch-toggle').textContent  = isBatchMode ? '切換為單字模式' : '切換為批次模式';
+  document.getElementById('btn-submit-add').textContent = isBatchMode ? '批次新增 →' : '新增 →';
+  document.getElementById('modal-error').textContent = '';
+}
+
+async function submitAddWord() {
+  const errEl  = document.getElementById('modal-error');
+  const statEl = document.getElementById('modal-status');
+  const btn    = document.getElementById('btn-submit-add');
+  errEl.textContent = ''; statEl.textContent = '';
+
+  // ── 解析輸入 ──
+  let wordsToAdd = [];
+  if (isBatchMode) {
+    const raw = document.getElementById('add-batch').value.trim();
+    if (!raw) { errEl.textContent = '請貼上至少一行單字。'; return; }
+    for (const line of raw.split('\n').map(l => l.trim()).filter(Boolean)) {
+      const c = line.indexOf(',');
+      if (c === -1) { errEl.textContent = `格式錯誤（缺少逗號）：「${line}」`; return; }
+      const w = line.slice(0, c).trim(), t = line.slice(c + 1).trim();
+      if (!w || !t) { errEl.textContent = `單字或翻譯為空：「${line}」`; return; }
+      wordsToAdd.push({ word: w, translation: t });
+    }
+  } else {
+    const w = document.getElementById('add-word').value.trim();
+    const t = document.getElementById('add-translation').value.trim();
+    if (!w || !t) { errEl.textContent = '請填入單字與翻譯。'; return; }
+    wordsToAdd.push({ word: w, translation: t });
+  }
+
+  btn.disabled = true;
+  statEl.textContent = `準備新增 ${wordsToAdd.length} 個單字…`;
+
+  // ── 在前端 allWords 產生新 id 並推入 ──
+  let nextId = allWords.length > 0
+    ? Math.max(...allWords.map(w => parseInt(w.id) || 0)) + 1
+    : 1;
+
+  for (const nw of wordsToAdd) {
+    allWords.push({
+      id:          nextId++,
+      word:        nw.word,
+      translation: nw.translation,
+      efactor:     2.5,
+      interval:    0,
+      nextReview:  '',   // 空白 = 今日到期，馬上可複習
+    });
+  }
+
+  console.log(`[ADD] 新增 ${wordsToAdd.length} 個單字到本地 allWords，總計 ${allWords.length} 個`, wordsToAdd);
+
+  // 上傳整個陣列
+  saveAllWords();
+  updateHeaderStats();
+  toast(`✓ 已新增 ${wordsToAdd.length} 個單字`);
+  closeAddModal();
+
+  // 重新建立 queue 並回到複習介面
+  buildQueue();
+  if (dueQueue.length === 0) showDone();
+  else { show('app'); showCard(); }
+}
+
+// ═══════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════
+function show(panelId) {
+  ['setup-panel','loader','app','done-panel'].forEach(id => {
+    const el = document.getElementById(id), isT = id === panelId;
+    el.classList.toggle('d-none', !isT);
+    el.classList.toggle('d-flex', isT);
+  });
+}
+
+function showDone() {
+  document.getElementById('done-sub').innerHTML =
+    `你已完成本次 ${dueQueue.length} 個單字的複習。<br>` +
+    `總庫 <strong class="text-warning">${allWords.length}</strong> 字，今日待複習已清空。`;
+  show('done-panel');
+}
+
+function reloadSession() { show('loader'); loadWords(); }
+
+function enableRatingBtns(on) {
+  document.querySelectorAll('#rating-area .btn').forEach(b => b.disabled = !on);
+}
+
+function updateHeaderStats() {
+  const today = todayStr();
+  document.getElementById('stat-due').textContent =
+    allWords.filter(w => !w.nextReview || w.nextReview <= today).length;
+  document.getElementById('stat-total').textContent = allWords.length;
+}
+
+function updateStreakUI(streak) {
+  const el = document.getElementById('stat-streak');
+  if (!el) return;
+  el.textContent = `🔥 ${streak}`;
+  el.style.display = streak > 0 ? '' : 'none';
+  // 特殊樣式：連勝超過 7 天變橘紅
+  el.className = streak >= 7
+    ? 'badge text-white'
+    : 'badge bg-warning text-dark';
+  if (streak >= 7) el.style.background = '#ff4500';
+  else             el.style.background = '';
+}
+
+function setLoaderText(msg) {
+  const el = document.getElementById('loader-text');
+  if (el) el.textContent = msg;
+}
+
+function toast(msg, delay = 3000) {
+  document.getElementById('toast-body').textContent = msg;
+  new bootstrap.Toast(document.getElementById('liveToast'), { delay }).show();
+}
+
+
+// ═══════════════════════════════════════════
+//  DATE UTILITIES
+// ═══════════════════════════════════════════
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+function addDays(s, n) {
+  const d = new Date(s + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+function pad(n) { return String(n).padStart(2, '0'); }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+
+// ═══════════════════════════════════════════
+//  KEYBOARD
+// ═══════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeAddModal(); return; }
+  if (document.getElementById('app').classList.contains('d-none')) return;
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flipCard(); }
+  if (['1','2','3','4','5'].includes(e.key) && !isSaving)
+    handleReview(parseInt(e.key));
+});
+document.getElementById('add-translation').addEventListener('keydown', e => { if (e.key==='Enter') submitAddWord(); });
+document.getElementById('gas-url').addEventListener('keydown',         e => { if (e.key==='Enter') startApp(); });
+</script>
+</body>
+</html>
