@@ -55,9 +55,7 @@
   }
   .card-enter { animation:cardEnter .3s ease; }
 
-  /* ── Save badge */
-  #save-indicator { position:absolute; top:10px; right:14px; font-size:.7rem; opacity:0; transition:opacity .4s; }
-  #save-indicator.show { opacity:1; }
+
 </style>
 </head>
 <body class="bg-dark text-light min-vh-100 d-flex flex-column">
@@ -111,7 +109,6 @@
     <!-- Flashcard -->
     <div class="card-scene w-100 mb-3" onclick="flipCard()">
       <div class="card-inner" id="card-inner">
-        <span id="save-indicator" class="text-success">✓ 已儲存</span>
         <div class="card-face bg-secondary bg-opacity-25 border border-secondary">
           <div id="card-word" class="fs-1 text-center fw-light">—</div>
           <small class="text-secondary mt-3" style="font-size:.65rem;letter-spacing:.1em">CLICK TO FLIP</small>
@@ -334,7 +331,6 @@ function showCard() {
   
   isFlipped = false;
   enableRatingBtns(true);
-  document.getElementById('save-indicator').classList.remove('show');
   
   const done = currentIndex, total = dueQueue.length;
   document.getElementById('q-current').textContent = done + 1;
@@ -389,7 +385,6 @@ async function handleReview(score) {
 
   // 上傳整個陣列
   saveAllWords();
-  document.getElementById('save-indicator').classList.add('show');
 
   await sleep(350);
   isSaving = false;
