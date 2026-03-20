@@ -141,7 +141,7 @@
 </div>
 
 <!-- ADD WORD MODAL -->
-<div class="modal fade" id="addModal" tabindex="-1">
+<!-- <div class="modal fade" id="addModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content bg-dark border-secondary">
       <div class="modal-header border-secondary">
@@ -177,6 +177,35 @@
           <small id="modal-status" class="text-secondary"></small>
           <button class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">取消</button>
           <button class="btn btn-warning btn-sm" id="btn-submit-add" onclick="submitAddWord()">新增 →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div> -->
+
+<div class="modal fade" id="addModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark border-secondary">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title text-warning">批次新增單字</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="mode-batch">
+          <label class="form-label small text-secondary">貼上單字列表</label>
+          <textarea id="add-batch" class="form-control bg-dark text-light border-secondary"
+                    rows="8" placeholder="ephemeral,短暫的&#10;serendipity,意外好運&#10;ubiquitous,無所不在的"></textarea>
+          <div class="form-text">每行格式：<code>單字,翻譯</code></div>
+        </div>
+        <div id="modal-error" class="text-danger small mt-2"></div>
+      </div>
+      <div class="modal-footer border-secondary">
+        <div class="d-flex align-items-center gap-2 w-100 justify-content-between">
+          <small id="modal-status" class="text-secondary"></small>
+          <div>
+            <button class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">取消</button>
+            <button class="btn btn-warning btn-sm" id="btn-submit-add" onclick="submitAddWord()">確認新增 →</button>
+          </div>
         </div>
       </div>
     </div>
@@ -296,22 +325,59 @@ function buildQueue() {
 // ═══════════════════════════════════════════
 //  CARD DISPLAY
 // ═══════════════════════════════════════════
+// function showCard() {
+//   if (currentIndex >= dueQueue.length) { showDone(); return; }
+//   const w = dueQueue[currentIndex];
+//   document.getElementById('card-word').textContent = w.word;
+//   document.getElementById('card-translation').textContent = w.translation;
+//   const ef = parseFloat(w.efactor) || 2.5, iv = parseInt(w.interval) || 0;
+//   document.getElementById('card-meta').innerHTML =
+//     `<span class="badge bg-secondary">EF ${ef.toFixed(2)}</span>` +
+//     `<span class="badge bg-secondary">間隔 ${iv}天</span>`;
+//   const inner = document.getElementById('card-inner');
+//   inner.classList.remove('flipped', 'card-enter');
+//   void inner.offsetWidth;
+//   inner.classList.add('card-enter');
+//   isFlipped = false;
+//   enableRatingBtns(true);
+//   document.getElementById('save-indicator').classList.remove('show');
+//   const done = currentIndex, total = dueQueue.length;
+//   document.getElementById('q-current').textContent = done + 1;
+//   document.getElementById('q-total').textContent = total;
+//   document.getElementById('q-progress').style.width = `${(done / total) * 100}%`;
+// }
 function showCard() {
   if (currentIndex >= dueQueue.length) { showDone(); return; }
   const w = dueQueue[currentIndex];
+  
+  const inner = document.getElementById('card-inner');
+  
+  // 1. 暫時關閉過渡動畫，避免重設狀態時產生 0.6s 的翻轉動作
+  inner.style.transition = 'none'; 
+  
+  // 2. 更新內容
   document.getElementById('card-word').textContent = w.word;
   document.getElementById('card-translation').textContent = w.translation;
+  
   const ef = parseFloat(w.efactor) || 2.5, iv = parseInt(w.interval) || 0;
   document.getElementById('card-meta').innerHTML =
     `<span class="badge bg-secondary">EF ${ef.toFixed(2)}</span>` +
     `<span class="badge bg-secondary">間隔 ${iv}天</span>`;
-  const inner = document.getElementById('card-inner');
+
+  // 3. 移除狀態類別
   inner.classList.remove('flipped', 'card-enter');
-  void inner.offsetWidth;
+  
+  // 4. 強制瀏覽器重繪 (Reflow)，確保 transition: none 立即生效
+  void inner.offsetWidth; 
+  
+  // 5. 恢復 transition 並加上進場動畫
+  inner.style.transition = ''; 
   inner.classList.add('card-enter');
+  
   isFlipped = false;
   enableRatingBtns(true);
   document.getElementById('save-indicator').classList.remove('show');
+  
   const done = currentIndex, total = dueQueue.length;
   document.getElementById('q-current').textContent = done + 1;
   document.getElementById('q-total').textContent = total;
@@ -379,14 +445,75 @@ async function handleReview(score) {
 // ═══════════════════════════════════════════
 //  ADD WORD — 前端直接推入 allWords，然後上傳整個陣列
 // ═══════════════════════════════════════════
+// function openAddModal() {
+//   if (!bsAddModal) bsAddModal = new bootstrap.Modal(document.getElementById('addModal'));
+//   ['modal-error','modal-status'].forEach(id => document.getElementById(id).textContent = '');
+//   ['add-word','add-translation','add-batch'].forEach(id => document.getElementById(id).value = '');
+//   document.getElementById('btn-submit-add').disabled = false;
+//   if (isBatchMode) toggleBatchMode();
+//   bsAddModal.show();
+//   setTimeout(() => document.getElementById('add-word').focus(), 300);
+// }
+
+// ═══════════════════════════════════════════
+//  ADD WORD — 僅保留批次功能
+// ═══════════════════════════════════════════
 function openAddModal() {
   if (!bsAddModal) bsAddModal = new bootstrap.Modal(document.getElementById('addModal'));
-  ['modal-error','modal-status'].forEach(id => document.getElementById(id).textContent = '');
-  ['add-word','add-translation','add-batch'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('modal-error').textContent = '';
+  document.getElementById('modal-status').textContent = '';
+  document.getElementById('add-batch').value = '';
   document.getElementById('btn-submit-add').disabled = false;
-  if (isBatchMode) toggleBatchMode();
   bsAddModal.show();
-  setTimeout(() => document.getElementById('add-word').focus(), 300);
+  setTimeout(() => document.getElementById('add-batch').focus(), 300);
+}
+
+async function submitAddWord() {
+  const errEl  = document.getElementById('modal-error');
+  const statEl = document.getElementById('modal-status');
+  const btn    = document.getElementById('btn-submit-add');
+  errEl.textContent = ''; statEl.textContent = '';
+
+  const raw = document.getElementById('add-batch').value.trim();
+  if (!raw) { errEl.textContent = '請貼上至少一行單字。'; return; }
+
+  let wordsToAdd = [];
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  
+  for (const line of lines) {
+    const c = line.indexOf(',');
+    if (c === -1) { errEl.textContent = `格式錯誤（缺少逗號）：「${line}」`; return; }
+    const w = line.slice(0, c).trim(), t = line.slice(c + 1).trim();
+    if (!w || !t) { errEl.textContent = `單字或翻譯為空：「${line}」`; return; }
+    wordsToAdd.push({ word: w, translation: t });
+  }
+
+  btn.disabled = true;
+  statEl.textContent = `處理中...`;
+
+  let nextId = allWords.length > 0
+    ? Math.max(...allWords.map(w => parseInt(w.id) || 0)) + 1
+    : 1;
+
+  for (const nw of wordsToAdd) {
+    allWords.push({
+      id:          nextId++,
+      word:        nw.word,
+      translation: nw.translation,
+      efactor:     2.5,
+      interval:    0,
+      nextReview:  '', 
+    });
+  }
+
+  saveAllWords();
+  updateHeaderStats();
+  toast(`✓ 已新增 ${wordsToAdd.length} 個單字`);
+  closeAddModal();
+
+  buildQueue();
+  if (dueQueue.length === 0) showDone();
+  else { show('app'); showCard(); }
 }
 
 function closeAddModal() { if (bsAddModal) bsAddModal.hide(); }
@@ -400,63 +527,63 @@ function toggleBatchMode() {
   document.getElementById('modal-error').textContent = '';
 }
 
-async function submitAddWord() {
-  const errEl  = document.getElementById('modal-error');
-  const statEl = document.getElementById('modal-status');
-  const btn    = document.getElementById('btn-submit-add');
-  errEl.textContent = ''; statEl.textContent = '';
+// async function submitAddWord() {
+//   const errEl  = document.getElementById('modal-error');
+//   const statEl = document.getElementById('modal-status');
+//   const btn    = document.getElementById('btn-submit-add');
+//   errEl.textContent = ''; statEl.textContent = '';
 
-  // ── 解析輸入 ──
-  let wordsToAdd = [];
-  if (isBatchMode) {
-    const raw = document.getElementById('add-batch').value.trim();
-    if (!raw) { errEl.textContent = '請貼上至少一行單字。'; return; }
-    for (const line of raw.split('\n').map(l => l.trim()).filter(Boolean)) {
-      const c = line.indexOf(',');
-      if (c === -1) { errEl.textContent = `格式錯誤（缺少逗號）：「${line}」`; return; }
-      const w = line.slice(0, c).trim(), t = line.slice(c + 1).trim();
-      if (!w || !t) { errEl.textContent = `單字或翻譯為空：「${line}」`; return; }
-      wordsToAdd.push({ word: w, translation: t });
-    }
-  } else {
-    const w = document.getElementById('add-word').value.trim();
-    const t = document.getElementById('add-translation').value.trim();
-    if (!w || !t) { errEl.textContent = '請填入單字與翻譯。'; return; }
-    wordsToAdd.push({ word: w, translation: t });
-  }
+//   // ── 解析輸入 ──
+//   let wordsToAdd = [];
+//   if (isBatchMode) {
+//     const raw = document.getElementById('add-batch').value.trim();
+//     if (!raw) { errEl.textContent = '請貼上至少一行單字。'; return; }
+//     for (const line of raw.split('\n').map(l => l.trim()).filter(Boolean)) {
+//       const c = line.indexOf(',');
+//       if (c === -1) { errEl.textContent = `格式錯誤（缺少逗號）：「${line}」`; return; }
+//       const w = line.slice(0, c).trim(), t = line.slice(c + 1).trim();
+//       if (!w || !t) { errEl.textContent = `單字或翻譯為空：「${line}」`; return; }
+//       wordsToAdd.push({ word: w, translation: t });
+//     }
+//   } else {
+//     const w = document.getElementById('add-word').value.trim();
+//     const t = document.getElementById('add-translation').value.trim();
+//     if (!w || !t) { errEl.textContent = '請填入單字與翻譯。'; return; }
+//     wordsToAdd.push({ word: w, translation: t });
+//   }
 
-  btn.disabled = true;
-  statEl.textContent = `準備新增 ${wordsToAdd.length} 個單字…`;
+//   btn.disabled = true;
+//   statEl.textContent = `準備新增 ${wordsToAdd.length} 個單字…`;
 
-  // ── 在前端 allWords 產生新 id 並推入 ──
-  let nextId = allWords.length > 0
-    ? Math.max(...allWords.map(w => parseInt(w.id) || 0)) + 1
-    : 1;
+//   // ── 在前端 allWords 產生新 id 並推入 ──
+//   let nextId = allWords.length > 0
+//     ? Math.max(...allWords.map(w => parseInt(w.id) || 0)) + 1
+//     : 1;
 
-  for (const nw of wordsToAdd) {
-    allWords.push({
-      id:          nextId++,
-      word:        nw.word,
-      translation: nw.translation,
-      efactor:     2.5,
-      interval:    0,
-      nextReview:  '',   // 空白 = 今日到期，馬上可複習
-    });
-  }
+//   for (const nw of wordsToAdd) {
+//     allWords.push({
+//       id:          nextId++,
+//       word:        nw.word,
+//       translation: nw.translation,
+//       efactor:     2.5,
+//       interval:    0,
+//       nextReview:  '',   // 空白 = 今日到期，馬上可複習
+//     });
+//   }
 
-  console.log(`[ADD] 新增 ${wordsToAdd.length} 個單字到本地 allWords，總計 ${allWords.length} 個`, wordsToAdd);
+//   console.log(`[ADD] 新增 ${wordsToAdd.length} 個單字到本地 allWords，總計 ${allWords.length} 個`, wordsToAdd);
 
-  // 上傳整個陣列
-  saveAllWords();
-  updateHeaderStats();
-  toast(`✓ 已新增 ${wordsToAdd.length} 個單字`);
-  closeAddModal();
+//   // 上傳整個陣列
+//   saveAllWords();
+//   updateHeaderStats();
+//   toast(`✓ 已新增 ${wordsToAdd.length} 個單字`);
+//   closeAddModal();
 
-  // 重新建立 queue 並回到複習介面
-  buildQueue();
-  if (dueQueue.length === 0) showDone();
-  else { show('app'); showCard(); }
-}
+//   // 重新建立 queue 並回到複習介面
+//   buildQueue();
+//   if (dueQueue.length === 0) showDone();
+//   else { show('app'); showCard(); }
+// }
 
 // ═══════════════════════════════════════════
 //  UI HELPERS
