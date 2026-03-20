@@ -218,7 +218,10 @@ async function startApp() {
   const url = document.getElementById('gas-url').value.trim();
   const err = document.getElementById('setup-error');
   err.textContent = '';
-  if (!url || !url.startsWith('http')) { err.textContent = '請貼上有效的 GAS Web App URL。'; return; }
+  if (!url || !url.startsWith('https://script.google.com/macros') || !url.endsWith('/exec')) { 
+    err.textContent = '請貼上有效的 GAS Web App URL（須以 /exec 結尾）。'; 
+    return; 
+  }
   API_URL = url;
   show('loader');
   await loadWords();
