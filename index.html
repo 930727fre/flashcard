@@ -287,12 +287,28 @@ function saveAllWords() {
 // ═══════════════════════════════════════════
 function buildQueue() {
   const today = todayStr();
-  dueQueue = allWords.filter(w => !w.nextReview || w.nextReview <= today);
-  // shuffle
+  const NEW_WORD_LIMIT = 20; // 每天限制的新單字數量
+
+  // 1. 篩選舊詞 (已經有複習日期且到期的)
+  let oldDue = allWords.filter(w => w.nextReview && w.nextReview <= today);
+
+  // 2. 篩選新詞 (從未有過複習日期的)
+  let newWords = allWords.filter(w => !w.nextReview);
+
+  // 3. 限制新詞數量，只取前 N 個
+  let limitedNew = newWords.slice(0, NEW_WORD_LIMIT);
+
+  // 4. 合併
+  dueQueue = [...oldDue, ...limitedNew];
+
+  console.log(`[QUEUE] 舊詞: ${oldDue.length}, 新詞上限: ${NEW_WORD_LIMIT}, 實際抽樣新詞: ${limitedNew.length}`);
+
+  // 5. 隨機洗牌 (Shuffle) 保持混合練習
   for (let i = dueQueue.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [dueQueue[i], dueQueue[j]] = [dueQueue[j], dueQueue[i]];
   }
+  
   currentIndex = 0;
 }
 
