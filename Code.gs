@@ -70,7 +70,10 @@ function getSettingsMap() {
   const tz = Session.getScriptTimeZone();
   const now = new Date();
   const todayStr = Utilities.formatDate(now, tz, "yyyy-MM-dd");
-  const lastUpdateStr = String(map.streak_last_date || "").trim();
+  const rawLastDate = String(map.streak_last_date || "").trim();
+  const lastUpdateStr = rawLastDate
+    ? Utilities.formatDate(new Date(rawLastDate), tz, "yyyy-MM-dd")
+    : "";
 
   let isNewDay = false;
   if (!lastUpdateStr) {
