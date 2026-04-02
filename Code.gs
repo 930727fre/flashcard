@@ -116,6 +116,7 @@ function initSheets() {
     settingSheet = SS.insertSheet('settings');
     settingSheet.appendRow(['key', 'value']);
     updateSettingValue('streak_count', '0');
+    updateSettingValue('streak_last_date', '');
     updateSettingValue('daily_new_count', '0');
     updateSettingValue('last_modified', new Date().toISOString());
   }
@@ -170,6 +171,37 @@ function getRawData(sheetName) {
   });
 }
 
+
+function testStreakLogic() {
+  const tz = 'Asia/Taipei';
+  const now = new Date();
+  const todayStr = Utilities.formatDate(now, tz, "yyyy-MM-dd");
+
+  const rawLastDate = String(getSettingValue('streak_last_date') || "").trim();
+  const lastUpdateStr = rawLastDate
+    ? Utilities.formatDate(new Date(rawLastDate), tz, "yyyy-MM-dd")
+    : "";
+
+  const yesterdayDate = new Date(now);
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterdayStr = Utilities.formatDate(yesterdayDate, tz, "yyyy-MM-dd");
+
+  const currentStreak = parseInt(getSettingValue('streak_count') || 0);
+
+  console.log('Today:', todayStr);
+  console.log('Last open (normalized):', lastUpdateStr || '(empty)');
+  console.log('Yesterday:', yesterdayStr);
+  console.log('Current streak:', currentStreak);
+  console.log('Is new day?', lastUpdateStr !== todayStr);
+  console.log('Is yesterday?', lastUpdateStr === yesterdayStr);
+
+  if (lastUpdateStr !== todayStr) {
+    const newStreak = lastUpdateStr === yesterdayStr ? currentStreak + 1 : 1;
+    console.log('→ New streak will be:', newStreak);
+  } else {
+    console.log('→ Already opened today, no change');
+  }
+}
 
 function response(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
