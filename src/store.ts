@@ -85,13 +85,8 @@ export const useStore = create<FlashcardState>((set, get) => ({
     const { gasUrl, isLoading } = get();
     if (!gasUrl || isLoading) return;
 
-    // Show local data immediately if available
+    set({ isLoading: true });
     const local = loadFromLocal();
-    if (local.cards && local.settings) {
-      set({ cards: local.cards, settings: local.settings });
-    } else {
-      set({ isLoading: true });
-    }
 
     try {
       const gasSettings = await gasApi.getSettings(gasUrl) as Settings;
