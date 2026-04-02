@@ -67,7 +67,7 @@ function getSettingsMap() {
   const map = {};
   data.forEach(item => map[item.key] = item.value);
 
-  const tz = Session.getScriptTimeZone();
+  const tz = 'Asia/Taipei';
   const now = new Date();
   const todayStr = Utilities.formatDate(now, tz, "yyyy-MM-dd");
   const rawLastDate = String(map.streak_last_date || "").trim();
