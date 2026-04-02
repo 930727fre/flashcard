@@ -70,32 +70,31 @@ function getSettingsMap() {
   const tz = 'Asia/Taipei';
   const now = new Date();
   const todayStr = Utilities.formatDate(now, tz, "yyyy-MM-dd");
+
+  // Normalize stored value (may be ISO string due to Sheets auto-detection)
   const rawLastDate = String(map.streak_last_date || "").trim();
   const lastUpdateStr = rawLastDate
     ? Utilities.formatDate(new Date(rawLastDate), tz, "yyyy-MM-dd")
     : "";
 
-  let isNewDay = false;
-  if (!lastUpdateStr) {
-    isNewDay = true;
-  } else {
-    const lastDayStr = Utilities.formatDate(new Date(lastUpdateStr), tz, "yyyy-MM-dd");
-    if (lastDayStr !== todayStr) isNewDay = true;
-  }
+  if (lastUpdateStr !== todayStr) {
+    const yesterdayDate = new Date(now);
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterdayStr = Utilities.formatDate(yesterdayDate, tz, "yyyy-MM-dd");
 
-  if (isNewDay) {
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = Utilities.formatDate(yesterday, tz, "yyyy-MM-dd");
-    const isYesterday = lastUpdateStr === yesterdayStr;
+    const currentStreak = parseInt(map.streak_count || 0);
+    const newStreak = lastUpdateStr === yesterdayStr ? currentStreak + 1 : 1;
+    const now_iso = now.toISOString();
 
-    const newStreak = isYesterday ? parseInt(map.streak_count || 0) + 1 : 1;
     updateSettingValue('streak_count', newStreak.toString());
-    updateSettingValue('streak_last_date', todayStr);
+    updateSettingValue('streak_last_date', now_iso);
     updateSettingValue('daily_new_count', '0');
+    updateSettingValue('last_modified', now_iso);
+
     map.streak_count = newStreak.toString();
-    map.streak_last_date = todayStr;
+    map.streak_last_date = now_iso;
     map.daily_new_count = '0';
+    map.last_modified = now_iso;
   }
 
   return map;
