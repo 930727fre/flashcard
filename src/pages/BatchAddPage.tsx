@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Container, Textarea, Button, Title, Stack, Paper,
-  ActionIcon, Group, Text, Alert, Code, Box, Center, Transition, ThemeIcon
+  ActionIcon, Group, Text, Alert, Code, Box, Transition, ThemeIcon
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconArrowLeft, IconDatabaseImport, IconAlertCircle, IconCheck, IconFileText } from '@tabler/icons-react';

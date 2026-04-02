@@ -82,7 +82,7 @@ export default function DashboardPage() {
                   <Text c="dimmed" size="xs" fw={700} style={{ letterSpacing: '1.5px' }}>
                     SYNCING WITH GOOGLE SHEETS
                   </Text>
-                  <Progress w={120} size="xs" radius="xl" animated color="blue" />
+                  <Progress value={100} w={120} size="xs" radius="xl" animated color="blue" />
                 </Stack>
               </Center>
             </Stack>

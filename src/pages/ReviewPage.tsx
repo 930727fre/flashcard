@@ -91,7 +91,7 @@ export default function ReviewPage() {
     return (
       <Center h="100vh" bg="#0a0c14">
         <Stack align="center" gap="xs">
-          <Progress w={200} size="sm" radius="xl" animated color="blue" />
+          <Progress value={100} w={200} size="sm" radius="xl" animated color="blue" />
           <Text c="dimmed" fw={600} size="xs" style={{ letterSpacing: 1.5 }}>SYNCHRONIZING SESSION...</Text>
         </Stack>
       </Center>

@@ -2,6 +2,7 @@
 import {
   fsrs,
   Rating,
+  type Grade,
   type Card as FSRSCard,
   type FSRSParameters
 } from 'ts-fsrs';
@@ -28,7 +29,7 @@ export function createFSRSCard(card: Card): FSRSCard {
 export function computeNext(card: Card, rating: Rating, params: FSRSParameters) {
   const f = fsrs(params);
   const fsrsCard = createFSRSCard(card);
-  const next = f.next(fsrsCard, new Date(), rating).card;
+  const next = f.next(fsrsCard, new Date(), rating as Grade).card;
 
   return {
     due: next.due.toISOString(),
