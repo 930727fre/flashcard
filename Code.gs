@@ -81,13 +81,10 @@ function getSettingsMap() {
   }
 
   if (isNewDay) {
-    const lastDate = lastUpdateStr ? new Date(lastUpdateStr) : null;
-    let isYesterday = false;
-    if (lastDate) {
-      const yesterday = new Date(now);
-      yesterday.setDate(yesterday.getDate() - 1);
-      isYesterday = isSameDay(lastDate, yesterday);
-    }
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = Utilities.formatDate(yesterday, tz, "yyyy-MM-dd");
+    const isYesterday = lastUpdateStr === yesterdayStr;
 
     const newStreak = isYesterday ? parseInt(map.streak_count || 0) + 1 : 1;
     updateSettingValue('streak_count', newStreak.toString());
@@ -171,11 +168,6 @@ function getRawData(sheetName) {
   });
 }
 
-function isSameDay(d1, d2) {
-  return d1.getFullYear() === d2.getFullYear() &&
-         d1.getMonth() === d2.getMonth() &&
-         d1.getDate() === d2.getDate();
-}
 
 function response(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
