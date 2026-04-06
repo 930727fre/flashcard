@@ -26,7 +26,7 @@ export default function BatchAddPage() {
     const newCards: Card[] = lines
       .filter(line => line.trim() !== "")
       .map(line => {
-        const [word, sentence, note] = line.split('::').map(s => s.trim());
+        const [word, note, sentence] = line.split('::').map(s => s.trim());
         return {
           id: nanoid(),
           word: word || 'Untitled',
@@ -127,7 +127,7 @@ export default function BatchAddPage() {
                       border: '1px solid rgba(255,255,255,0.05)' 
                     }}
                   >
-                    單字::例句::筆記
+                    單字::筆記::例句
                   </Code>
                 </Alert>
 
@@ -143,7 +143,7 @@ export default function BatchAddPage() {
                 >
                   <Stack gap="md">
                     <Textarea
-                      placeholder="Apple::An apple a day.::蘋果&#10;Banana::I like bananas.::香蕉"
+                      placeholder="Apple::蘋果::An apple a day.&#10;Banana::香蕉::I like bananas."
                       minRows={12}
                       autosize
                       value={content}
