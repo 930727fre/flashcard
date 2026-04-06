@@ -26,7 +26,7 @@ export default function BatchAddPage() {
     const newCards: Card[] = lines
       .filter(line => line.trim() !== "")
       .map(line => {
-        const [word, sentence, note] = line.split(/[,，\t]/).map(s => s.trim());
+        const [word, sentence, note] = line.split('::').map(s => s.trim());
         return {
           id: nanoid(),
           word: word || 'Untitled',
@@ -127,7 +127,7 @@ export default function BatchAddPage() {
                       border: '1px solid rgba(255,255,255,0.05)' 
                     }}
                   >
-                    單字, 例句, 筆記 (可用逗號或 Tab)
+                    單字::例句::筆記
                   </Code>
                 </Alert>
 
@@ -143,7 +143,7 @@ export default function BatchAddPage() {
                 >
                   <Stack gap="md">
                     <Textarea
-                      placeholder="Apple, An apple a day., 蘋果&#10;Banana, I like bananas., 香蕉"
+                      placeholder="Apple::An apple a day.::蘋果&#10;Banana::I like bananas.::香蕉"
                       minRows={12}
                       autosize
                       value={content}
@@ -167,7 +167,7 @@ export default function BatchAddPage() {
                         <Text size="xs" c="dimmed" fw={700} tt="uppercase" style={{ letterSpacing: 1 }}>
                           Total Cards: <span style={{ color: '#7950f2' }}>{lineCount}</span>
                         </Text>
-                        <Text size="xs" c="dimmed">CSV / TSV Supported</Text>
+                        <Text size="xs" c="dimmed">Separator: ::</Text>
                       </Group>
 
                       <Button
